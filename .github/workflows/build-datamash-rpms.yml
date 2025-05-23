@@ -1,0 +1,59 @@
+name: Build datamash RPMs for EL8/9/10
+
+on:
+  workflow_dispatch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        el_version: [8, 9, 10]
+        include:
+          - el_version: 8
+            base_image: "almalinux:8"
+            base_srpm_url: "https://dl.fedoraproject.org/pub/archive/epel/8.5/Everything/SRPMS/Packages/d/datamash-1.5-1.el8.src.rpm"
+          - el_version: 9
+            base_image: "almalinux:9"
+            base_srpm_url: "https://dl.fedoraproject.org/pub/epel/9/Everything/source/tree/Packages/d/datamash-1.7-1.el9.src.rpm"
+          - el_version: 10
+            base_image: "almalinux/10-kitten-init"
+            base_srpm_url: "https://dl.fedoraproject.org/pub/epel/9/Everything/source/tree/Packages/d/datamash-1.7-1.el9.src.rpm"
+    
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Build Docker image for EL${{ matrix.el_version }}
+        run: |
+          docker build \
+            -f dockerfiles/Dockerfile.rpmbuild-datamash \
+            --build-arg BASE_IMAGE=${{ matrix.base_image }} \
+            --build-arg EL_VERSION=${{ matrix.el_version }} \
+            --build-arg BASE_SRPM_URL="${{ matrix.base_srpm_url }}" \
+            -t datamash-el${{ matrix.el_version }}-build:latest .
+
+      - name: Create build directory
+        run: mkdir -p output
+
+      - name: Run rpmbuild container
+        run: |
+          docker run --rm \
+            -u root \
+            -v ${{ github.workspace }}/output:/output \
+            datamash-el${{ matrix.el_version }}-build:latest \
+            bash -c "
+              set -euo pipefail;
+              rpmbuild --define '_topdir /home/builder/rpmbuild' -ba /home/builder/rpmbuild/SPECS/datamash.spec;
+              cp /home/builder/rpmbuild/RPMS/*/* /output/;
+              cp /home/builder/rpmbuild/SRPMS/* /output/;
+              ls -lAh /output/;
+            "
+      
+      - name: Upload RPM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: datamash-el${{ matrix.el_version }}-rpms
+          path: |
+            output/*.rpm
+            output/*.src.rpm

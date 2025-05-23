@@ -1,0 +1,68 @@
+ARG BASE_IMAGE=almalinux:9
+FROM ${BASE_IMAGE}
+
+ARG EL_VERSION=9
+ARG BASE_SRPM_URL
+
+# Handle different repo configurations based on EL version
+RUN if [ "${EL_VERSION}" = "8" ]; then \
+      dnf -y install dnf-plugins-core epel-release && \
+      dnf -y config-manager --set-enabled powertools; \
+    elif [ "${EL_VERSION}" = "9" ]; then \
+      dnf -y install dnf-plugins-core epel-release && \
+      dnf -y config-manager --set-enabled crb; \
+    elif [ "${EL_VERSION}" = "10" ]; then \
+      dnf -y install dnf-plugins-core && \
+      dnf -y config-manager --set-enabled crb && \
+      dnf -y install epel-release; \
+    fi && \
+    dnf -y install --allowerasing curl ca-certificates && \
+    dnf clean all
+
+# Install build tools and datamash dependencies
+RUN dnf -y groupinstall "Development Tools" && \
+    dnf -y install rpm-build rpmdevtools redhat-rpm-config \
+      gettext perl perl-Digest-MD5 perl-Digest-SHA perl-Data-Dumper \
+      perl-FileHandle perl-File-Compare perl-File-Find \
+      pkgconfig bash-completion make gcc wget --skip-broken && \
+    dnf clean all
+
+# Create builder user and set up RPM tree
+RUN useradd -m builder && \
+    su - builder -c "rpmdev-setuptree"
+
+# Switch to builder user and set working directory
+USER builder
+WORKDIR /home/builder/rpmbuild
+
+# Create necessary directories
+RUN mkdir -p SPECS SOURCES BUILD RPMS SRPMS
+
+# Download and extract the base source RPM to get spec file and patches
+RUN curl -L -o datamash-base.src.rpm "${BASE_SRPM_URL}" && \
+    rpm2cpio datamash-base.src.rpm | cpio -idmv && \
+    mv *.spec SPECS/ && \
+    mv *.patch SOURCES/ 2>/dev/null || true && \
+    rm datamash-base.src.rpm *.tar.gz 2>/dev/null || true
+
+# Download datamash 1.9 sources
+RUN cd SOURCES && \
+    curl -L -o datamash-1.9.tar.gz https://ftp.gnu.org/gnu/datamash/datamash-1.9.tar.gz
+
+# Update spec file for datamash 1.9
+RUN cd SPECS && \
+    # Update Version to 1.9
+    sed -i 's/^Version:.*/Version:    1.9/' datamash.spec && \
+    # Update Release to reset it to 1
+    sed -i 's/^Release:.*/Release:    1%{?dist}/' datamash.spec && \
+    # Update Source0 to point to the correct URL
+    sed -i 's|^Source0:.*|Source0:    https://ftp.gnu.org/gnu/datamash/datamash-%{version}.tar.gz|' datamash.spec && \
+    # Remove patches that might not apply to 1.9 (they're usually version-specific)
+    sed -i '/^Patch[0-9]*:/d' datamash.spec && \
+    sed -i '/^%patch[0-9]*/d' datamash.spec && \
+    sed -i '/%ifarch armv7hl/,/%endif/d' datamash.spec && \
+    # Add changelog entry
+    sed -i '/^%changelog/a\* '"$(date +"%a %b %d %Y")"' Builder <builder@local> - 1.9-1\
+- Updated to datamash 1.9 from upstream GNU sources\
+- Removed version-specific patches\
+- Built for EL'"${EL_VERSION}"' compatibility' datamash.spec
