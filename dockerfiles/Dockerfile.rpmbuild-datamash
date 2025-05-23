@@ -61,8 +61,11 @@ RUN cd SPECS && \
     sed -i '/^Patch[0-9]*:/d' datamash.spec && \
     sed -i '/^%patch[0-9]*/d' datamash.spec && \
     sed -i '/%ifarch armv7hl/,/%endif/d' datamash.spec && \
+    # Remove TODO file reference from %doc section since it doesn't exist in 1.9
+    sed -i 's/%doc README NEWS THANKS TODO AUTHORS ChangeLog/%doc README NEWS THANKS AUTHORS ChangeLog/' datamash.spec && \
     # Add changelog entry
     sed -i '/^%changelog/a\* '"$(date +"%a %b %d %Y")"' Builder <builder@local> - 1.9-1\
 - Updated to datamash 1.9 from upstream GNU sources\
 - Removed version-specific patches\
+- Removed TODO file reference (not present in 1.9)\
 - Built for EL'"${EL_VERSION}"' compatibility' datamash.spec
