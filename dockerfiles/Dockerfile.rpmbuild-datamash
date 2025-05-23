@@ -76,8 +76,9 @@ RUN cd SPECS && \
 
 # Patch datamash.spec to ship the new decorate helper
 RUN sed -i '/^%install$/a \
+    %{__mkdir_p} %{buildroot}%{_bindir} && \
     %{__install} -p decorate %{buildroot}%{_bindir}/decorate' \
-    /home/builder/rpmbuild/SPECS/datamash.spec \
+    SPECS/datamash.spec \
  && sed -i '/^%files -f %{name}\.lang$/a \
 %dir %{compdir}\/..\
 %dir %{compdir}\
@@ -85,4 +86,4 @@ RUN sed -i '/^%install$/a \
 %{_bindir}\/decorate\
 %{_mandir}\/man1\/datamash.1*\
 %{_mandir}\/man1\/decorate.1*/' \
-    /home/builder/rpmbuild/SPECS/datamash.spec
+    SPECS/datamash.spec
