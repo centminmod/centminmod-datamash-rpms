@@ -51,11 +51,7 @@ COPY spec/datamash.spec-1.9 SPECS/datamash.spec
 RUN cd SOURCES && \
     curl -L -o datamash-1.9.tar.gz https://ftp.gnu.org/gnu/datamash/datamash-1.9.tar.gz
 
-# Add properly formatted dynamic changelog entry for the specific EL version
+# Add properly formatted dynamic changelog entry using printf for correct newlines
 RUN cd SPECS && \
-    sed -i '/^%changelog/a\* '"$(date +"%a %b %d %Y")"' Builder <builder@local> - 1.9-1\
-- Updated to datamash 1.9 from upstream GNU sources\
-- Added decorate binary and man page (new in 1.9)\
-- Removed TODO file reference (not present in 1.9)\
-- Built for EL'"${EL_VERSION}"' using upstream sources\
-' datamash.spec
+    CHANGELOG_ENTRY="* $(date +'%a %b %d %Y') Builder <builder@local> - 1.9-1\n- Updated to datamash 1.9 from upstream GNU sources\n- Added decorate binary and man page (new in 1.9)\n- Removed TODO file reference (not present in 1.9)\n- Built for EL${EL_VERSION} using upstream sources\n" && \
+    sed -i "/^%changelog/r /dev/stdin" datamash.spec <<< "$(printf "$CHANGELOG_ENTRY")"
