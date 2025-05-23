@@ -63,9 +63,13 @@ RUN cd SPECS && \
     sed -i '/%ifarch armv7hl/,/%endif/d' datamash.spec && \
     # Remove TODO file reference from %doc section since it doesn't exist in 1.9
     sed -i 's/%doc README NEWS THANKS TODO AUTHORS ChangeLog/%doc README NEWS THANKS AUTHORS ChangeLog/' datamash.spec && \
+    # Update %files section to include new binaries and man pages in datamash 1.9
+    sed -i 's|%{_bindir}/\*|%{_bindir}/datamash\n%{_bindir}/decorate|' datamash.spec && \
+    sed -i 's|%{_mandir}/man1/\*|%{_mandir}/man1/datamash.1\*\n%{_mandir}/man1/decorate.1\*|' datamash.spec && \
     # Add changelog entry
     sed -i '/^%changelog/a\* '"$(date +"%a %b %d %Y")"' Builder <builder@local> - 1.9-1\
 - Updated to datamash 1.9 from upstream GNU sources\
 - Removed version-specific patches\
 - Removed TODO file reference (not present in 1.9)\
+- Added decorate binary and man page (new in 1.9)\
 - Built for EL'"${EL_VERSION}"' compatibility' datamash.spec
