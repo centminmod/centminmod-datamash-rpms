@@ -73,3 +73,16 @@ RUN cd SPECS && \
 - Removed TODO file reference (not present in 1.9)\
 - Added decorate binary and man page (new in 1.9)\
 - Built for EL'"${EL_VERSION}"' compatibility' datamash.spec
+
+# Patch datamash.spec to ship the new decorate helper
+RUN sed -i '/^%install$/a \
+    %{__install} -p decorate %{buildroot}%{_bindir}/decorate' \
+    /home/builder/rpmbuild/SPECS/datamash.spec \
+ && sed -i '/^%files -f %{name}\.lang$/a \
+%dir %{compdir}\/..\
+%dir %{compdir}\
+%{compdir}\/datamash\
+%{_bindir}\/decorate\
+%{_mandir}\/man1\/datamash.1*\
+%{_mandir}\/man1\/decorate.1*/' \
+    /home/builder/rpmbuild/SPECS/datamash.spec
